@@ -1,0 +1,30 @@
+{
+    "builders": [
+      {
+        "type": "docker",
+        "image": "mongo:4.0",
+        "commit": "true",
+        "changes": [
+          "LABEL MAINTAINER=y.fisakov@ppl33-35.com",
+          "EXPOSE 27017"
+        ]
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "file",
+        "source": "DBSchemes/order.json",
+        "destination": "/docker-entrypoint-initdb.d/order.json"
+      }
+    ],
+    "post-processors": [
+      [
+        {
+          "type": "docker-tag",
+          "repository": "git.ppl33-35.com:4567/vantage/backend/order-service/mongodb",
+          "tag": "latest"
+        },
+        "docker-push"
+      ]
+    ]
+  }

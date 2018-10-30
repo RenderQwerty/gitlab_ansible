@@ -1,0 +1,7 @@
+env: prod
+registry_uri: "git.example:4567/vantage/backend"
+service_name: order-service
+default_network: default_net
+db:
+  name: order_db
+  network: db_order

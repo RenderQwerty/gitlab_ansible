@@ -1,0 +1,36 @@
+---
+
+- name: Provision identity
+  hosts: tag_docker
+  become: true
+
+  tasks:
+    - name: Login to registry
+      include_tasks: registry.yml
+
+    - name: Create networks
+      docker_network:
+        name: "{{ item }}"
+      loop:
+        - "{{ db.network }}"
+        -  logging
+
+    - name: Create docker volume
+      docker_volume:
+        name: "db_data_{{ service_name }}"
+      
+    - name: init database
+      docker_container:
+        name: "{{ db.name }}"
+        image: "{{ registry_uri }}/{{ service_name }}/mongodb:latest"
+        restart: yes
+        restart_policy: always
+        recreate: yes
+        published_ports: "27017/tcp"
+        volumes:
+          - db_data_{{ service_name }}:/data/db
+        networks:
+          - name: "{{ db.network }}"
+          - name: logging
+        env:
+          MONGO_INITDB_DATABASE: "{{ db.name }}"

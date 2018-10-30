@@ -1,0 +1,33 @@
+---
+
+- name: Provision identity
+  hosts: tag_docker
+  become: true
+
+  tasks:
+    - name: Login to registry
+      include_tasks: registry.yml
+
+    - name: Create networks
+      docker_network:
+        name: "{{ item }}"
+      loop:
+        - "{{ default_network }}"
+        - "{{ db.network }}"
+        -  logging
+
+    - name: Spinup {{ service_name }}
+      docker_container:
+        name: "{{ service_name }}"
+        image: "{{ registry_uri }}/{{ service_name }}:latest"
+        pull: yes
+        restart: yes
+        recreate: yes
+        networks:
+          - name: "{{ default_network }}"
+          - name: "{{ db.network }}"
+          - name: logging
+        published_ports: "8085/tcp"
+        env:
+          CONFIG_SERVICE_URL: config-service
+          CONFIG_SERVICE_PORT: 8888

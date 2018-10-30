@@ -1,0 +1,36 @@
+{
+    "builders": [
+      {
+        "type": "docker",
+        "image": "ubuntu:bionic",
+        "commit": "true",
+        "changes": [
+          "WORKDIR /app",
+          "LABEL MAINTAINER=y.fisakov@ppl33-35.com",
+          "EXPOSE 8085",
+          "ENTRYPOINT java -jar -Djasypt.encryptor.password=ahB6Ezee order-service.jar"
+        ]
+      }
+    ],
+    "provisioners": [
+      {
+        "type": "shell",
+        "inline": ["apt -y update && apt install -y openjdk-11-jre-headless curl --no-install-recommends && mkdir /app && apt -y autoremove"]
+      },
+      {
+        "type": "file",
+        "source": "target/order-service-build-snapshot.jar",
+        "destination": "/app/order-service.jar"
+      }
+    ],
+    "post-processors": [
+      [
+        {
+          "type": "docker-tag",
+          "repository": "git.ppl33-35.com:4567/vantage/backend/order-service",
+          "tag": "latest"
+        },
+        "docker-push"
+      ]
+    ]
+  }
