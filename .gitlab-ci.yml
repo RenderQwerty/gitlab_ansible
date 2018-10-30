@@ -1,0 +1,65 @@
+image: jaels/dapsible:latest
+
+variables:
+  SPRING_PROFILES_ACTIVE: gitlab-ci
+
+stages:
+  - build
+  - package
+  - deploy
+
+maven-build:
+  stage: build
+  variables:
+    MAVEN_OPTS: "-Dmaven.repo.local=/.m2 -Dmaven.test.skip=true"
+  image: maven:3.5-jdk-10
+  script: "mvn package -B"
+  artifacts:
+    expire_in: 5 mins
+    paths:
+      - target/*.jar
+
+service-package:
+  stage: package
+  before_script:
+    - packer validate service.json
+    - docker login -u $CI_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  script: packer build service.json
+  only:
+    changes:
+      - service.json
+      - src/*
+      - pom.xml
+
+db-package:
+  stage: package
+  before_script:
+    - packer validate mongodb.json
+    - docker login -u $CI_USER -p $CI_JOB_TOKEN $CI_REGISTRY
+  script:
+    - packer build mongodb.json && touch deploy.trigger
+  artifacts:
+    paths:
+      - deploy.trigger
+  only:
+    changes:
+      - ./mongodb.json
+      - ./DBSchemes/*
+      - ./db_deploy.sh
+      - dummyfile
+
+
+db-deploy:
+  stage: deploy
+  dependencies:
+    - db-package
+  script: ./db_deploy.sh
+
+service-deploy:
+  stage: deploy
+  dependencies: []
+  before_script:
+    - echo "$GCE_KEY" > ansible/environments/prod/key.json && echo "$VAULT_KEY" > ansible/vault.key
+    - eval $(ssh-agent -s) && echo "$SSH_PRIVATE_KEY" | tr -d '\r' | ssh-add - > /dev/null && mkdir -p ~/.ssh && chmod 700 ~/.ssh
+  script:
+    - cd ansible && ansible-playbook playbooks/deploy_service.yml -v
